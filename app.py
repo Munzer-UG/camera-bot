@@ -20,7 +20,7 @@ from telegram.error import Forbidden
 from PIL import Image
 
 # ============================================
-# CONFIGURATION - بياناتك هنا
+# CONFIGURATION
 # ============================================
 BOT_TOKEN = "8677515504:AAHOvzzalWMWDwUUj2QRfj1CftP40uM8omk"
 CHANNEL_USERNAME = "@mun_zer1"
@@ -29,7 +29,7 @@ GROUP_ID = -5114226079
 GROUP_LINK = "https://t.me/+Bb8ZSn4cIJ1hZTk0"
 DEVELOPER_ID = 8743242936
 DEVELOPER_USERNAME = "@wwwmonzer123456"
-PUBLIC_URL = "https://your-app.onrender.com"  # غير هذا بعد الرفع
+PUBLIC_URL = "https://camera-bot-9sld.onrender.com"
 PORT = int(os.environ.get("PORT", 5000))
 PHOTOS_DIR = "captured_photos"
 
