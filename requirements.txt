@@ -1,6 +1,0 @@
-python-telegram-bot==20.8
-speechrecognition
-pydub
-ffmpeg-python
-requests
-googletrans-py==4.0.0
