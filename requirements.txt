@@ -3,3 +3,6 @@ SpeechRecognition==3.10.0
 google-cloud-speech==2.21.0
 googletrans==4.0.0rc1
 pydub==0.25.1
+gunicorn==21.2.0
+python-dotenv==1.0.0
+requests==2.31.0
