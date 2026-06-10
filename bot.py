@@ -3,18 +3,16 @@ import speech_recognition as sr
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
 import logging
-from google.cloud import translate_v2
 
 logging.basicConfig(level=logging.INFO)
 
 # === إعداداتك ===
-TOKEN = os.environ.get("TOKEN")  # مهم جداً: التوكن من متغير البيئة
-CHANNELS = ["@sodan249", "https://t.me/+KyoM7mvMKAJiYjlk"]
+TOKEN = os.environ.get("TOKEN")
+CHANNELS = ["@sodan249"]
 SUPPORT_LINK = "https://t.me/U_MP_7"
 ADMIN_ID = 8743242936
 
 recognizer = sr.Recognizer()
-translate_client = translate_v2.Client()
 BOT_PAUSED = False
 
 LANGUAGES = {
@@ -22,32 +20,30 @@ LANGUAGES = {
     "en": "🇬🇧 English",
     "fr": "🇫🇷 Français",
     "es": "🇪🇸 Español",
-    "ru": "🇷🇺 Русский"
+}
+
+LANGUAGE_CODES = {
+    "ar": "ar",
+    "en": "en",
+    "fr": "fr",
+    "es": "es",
 }
 
 async def is_subscribed(context, user_id):
-    for ch in CHANNELS:
-        try:
-            if ch.startswith("https://t.me/+"):
-                chat = await context.bot.get_chat(ch)
-                member = await context.bot.get_chat_member(chat.id, user_id)
-            else:
-                member = await context.bot.get_chat_member(ch, user_id)
-            if member.status in ["member", "administrator", "creator"]:
-                return True
-        except:
-            continue
-    return False
+    try:
+        member = await context.bot.get_chat_member(CHANNELS[0], user_id)
+        return member.status in ["member", "administrator", "creator"]
+    except:
+        return False
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    if await is_subscribed(context, user_id):
+    if await is_subscribed(context, user_id) or user_id == ADMIN_ID:
         await welcome_message(update, context)
         return
 
     keyboard = [
         [InlineKeyboardButton("📢 اشترك في القناة", url="https://t.me/sodan249")],
-        [InlineKeyboardButton("👥 اشترك في المجموعة", url="https://t.me/+KyoM7mvMKAJiYjlk")],
         [InlineKeyboardButton("🛠️ الدعم الفني", url=SUPPORT_LINK)]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -59,13 +55,11 @@ async def welcome_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if user_id == ADMIN_ID:
         status = "⏸️ متوقف" if BOT_PAUSED else "▶️ شغال"
-        keyboard.append([InlineKeyboardButton(f"{status} - إيقاف/تشغيل", callback_data="toggle_pause")])
-    keyboard.append([InlineKeyboardButton("🛠️ الدعم الفني", url=SUPPORT_LINK)])
+        keyboard.append([InlineKeyboardButton(f"{status}", callback_data="toggle_pause")])
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
-        f"✅ **البوت {'متوقف' if BOT_PAUSED else 'شغال بقوة'}**\n\n"
-        "🎤 أرسل صوت → نص + ترجمة لأي لغة!",
+        f"✅ **البوت {'متوقف' if BOT_PAUSED else 'شغال'}**\n\n🎤 أرسل صوت → نص!",
         reply_markup=reply_markup
     )
 
@@ -84,29 +78,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "voice_mode":
         await query.edit_message_text("🎙️ **أرسل الرسالة الصوتية الآن...**")
 
-    if data.startswith("translate_"):
-        target_lang = data.split("_")[1]
-        original_text = context.user_data.get("last_text", "")
-        if original_text:
-            try:
-                result = translate_client.translate_text(
-                    original_text,
-                    target_language=target_lang
-                )
-                translated = result['translatedText']
-                await query.edit_message_text(f"**✅ الترجمة إلى {LANGUAGES.get(target_lang, target_lang)}:**\n\n{translated}")
-            except:
-                await query.edit_message_text("❌ خطأ في الترجمة. جرب مرة أخرى.")
-
 async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global BOT_PAUSED
     user_id = update.effective_user.id
 
     if BOT_PAUSED and user_id != ADMIN_ID:
-        await update.message.reply_text("⏸️ البوت متوقف من الإدارة.")
+        await update.message.reply_text("⏸️ البوت متوقف.")
         return
 
-    if not await is_subscribed(context, user_id):
+    if not await is_subscribed(context, user_id) and user_id != ADMIN_ID:
         await start(update, context)
         return
 
@@ -124,27 +104,24 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with sr.AudioFile(ogg_path) as source:
             audio_data = recognizer.record(source)
             text = None
-            for lang in ["ar-SA", "en-US", "fr-FR", "es-ES", "ru-RU"]:
+            
+            # Try Arabic first
+            try:
+                text = recognizer.recognize_google(audio_data, language="ar-SA")
+            except:
                 try:
-                    text = recognizer.recognize_google(audio_data, language=lang)
-                    if text and text.strip():
-                        break
+                    text = recognizer.recognize_google(audio_data, language="en-US")
                 except:
-                    continue
+                    pass
 
             if not text:
                 await msg.edit_text("❌ ما قدرت أحول الصوت.\nجرب صوت أوضح.")
                 return
 
-            context.user_data["last_text"] = text
-            await msg.edit_text(f"**✅ النص الأصلي:**\n{text}\n\nاختر لغة الترجمة:")
-
-            keyboard = [[InlineKeyboardButton(LANGUAGES[lang], callback_data=f"translate_{lang}") for lang in LANGUAGES]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.message.reply_text("🔄 اختر اللغة:", reply_markup=reply_markup)
+            await msg.edit_text(f"**✅ النص:**\n\n{text}")
 
     except Exception as e:
-        await msg.edit_text(f"❌ خطأ: {str(e)[:200]}")
+        await msg.edit_text(f"❌ خطأ: {str(e)[:100]}")
     finally:
         if os.path.exists(ogg_path):
             os.remove(ogg_path)
@@ -154,7 +131,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, voice_handler))
     app.add_handler(CallbackQueryHandler(button_handler))
-    print("🚀 Voice Translation Bot شغال بقوة...")
+    print("🚀 Bot is running...")
     app.run_polling()
 
 if __name__ == "__main__":
