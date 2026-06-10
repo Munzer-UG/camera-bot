@@ -3,7 +3,7 @@ import speech_recognition as sr
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
 import logging
-from googletrans import Translator
+from google.cloud import translate_v2
 
 logging.basicConfig(level=logging.INFO)
 
@@ -14,7 +14,7 @@ SUPPORT_LINK = "https://t.me/U_MP_7"
 ADMIN_ID = 8743242936
 
 recognizer = sr.Recognizer()
-translator = Translator()
+translate_client = translate_v2.Client()
 BOT_PAUSED = False
 
 LANGUAGES = {
@@ -89,7 +89,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         original_text = context.user_data.get("last_text", "")
         if original_text:
             try:
-                translated = translator.translate(original_text, dest=target_lang).text
+                result = translate_client.translate_text(
+                    original_text,
+                    target_language=target_lang
+                )
+                translated = result['translatedText']
                 await query.edit_message_text(f"**✅ الترجمة إلى {LANGUAGES.get(target_lang, target_lang)}:**\n\n{translated}")
             except:
                 await query.edit_message_text("❌ خطأ في الترجمة. جرب مرة أخرى.")
