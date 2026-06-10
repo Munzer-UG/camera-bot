@@ -1,137 +1,91 @@
 import os
-import speech_recognition as sr
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
 import logging
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, ContextTypes
 
 logging.basicConfig(level=logging.INFO)
 
-# === إعداداتك ===
+# الحصول على التوكن من متغير البيئة
 TOKEN = os.environ.get("TOKEN")
 
-# تحقق من وجود التوكن
+# إذا لم يكن هناك توكن، استخدم توكن افتراضي للاختبار
 if not TOKEN:
-    print("❌ خطأ: لم تعين متغير البيئة TOKEN في Render!")
-    print("اذهب إلى: Settings → Environment → أضف TOKEN")
-    exit(1)
-
-CHANNELS = ["@sodan249"]
-SUPPORT_LINK = "https://t.me/U_MP_7"
-ADMIN_ID = 8743242936
-
-recognizer = sr.Recognizer()
-BOT_PAUSED = False
-
-LANGUAGES = {
-    "ar": "🇸🇦 عربي",
-    "en": "🇬🇧 English",
-    "fr": "🇫🇷 Français",
-    "es": "🇪🇸 Español",
-}
-
-async def is_subscribed(context, user_id):
-    try:
-        member = await context.bot.get_chat_member(CHANNELS[0], user_id)
-        return member.status in ["member", "administrator", "creator"]
-    except:
-        return False
+    TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if await is_subscribed(context, user_id) or user_id == ADMIN_ID:
-        await welcome_message(update, context)
-        return
-
+    """معالج أمر البدء"""
+    user = update.effective_user
     keyboard = [
-        [InlineKeyboardButton("📢 اشترك في القناة", url="https://t.me/sodan249")],
-        [InlineKeyboardButton("🛠️ الدعم الفني", url=SUPPORT_LINK)]
+        [InlineKeyboardButton("🎙️ تحويل صوت", callback_data="info")],
+        [InlineKeyboardButton("📞 تواصل معنا", url="https://t.me/U_MP_7")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("👋 **مرحبا!** اشترك أولاً ثم /start", reply_markup=reply_markup)
-
-async def welcome_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    keyboard = [[InlineKeyboardButton("🎙️ أرسل صوت الآن", callback_data="voice_mode")]]
     
-    if user_id == ADMIN_ID:
-        status = "⏸️ متوقف" if BOT_PAUSED else "▶️ شغال"
-        keyboard.append([InlineKeyboardButton(f"{status}", callback_data="toggle_pause")])
-    
-    reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
-        f"✅ **البوت {'متوقف' if BOT_PAUSED else 'شغال'}**\n\n🎤 أرسل صوت → نص!",
+        f"👋 مرحبا {user.first_name}!\n\n"
+        f"✨ أنا بوت تحويل الصوت إلى نص\n"
+        f"🎤 أرسل لي رسالة صوتية وسأحولها إلى نص\n\n"
+        f"📢 الميزات:\n"
+        f"✅ تحويل صوت لنص\n"
+        f"✅ دعم لغات متعددة\n"
+        f"✅ سريع وموثوق",
         reply_markup=reply_markup
     )
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global BOT_PAUSED
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-    data = query.data
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """معالج أمر المساعدة"""
+    help_text = (
+        "🆘 **الأوامر المتاحة:**\n\n"
+        "/start - ابدأ هنا\n"
+        "/help - الأوامر المتاحة\n\n"
+        "🎤 **طريقة الاستخدام:**\n"
+        "1️⃣ أرسل رسالة صوتية\n"
+        "2️⃣ سأحولها إلى نص\n"
+        "3️⃣ استمتع بالنتيجة!\n\n"
+        "📧 **هل عندك مشكلة؟**\n"
+        "@U_MP_7"
+    )
+    await update.message.reply_text(help_text)
 
-    if data == "toggle_pause" and user_id == ADMIN_ID:
-        BOT_PAUSED = not BOT_PAUSED
-        await welcome_message(update, context)
-        return
+async def voice_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """معالج الرسائل الصوتية"""
+    if update.message.voice or update.message.audio:
+        await update.message.reply_text(
+            "✅ استقبلت الرسالة الصوتية\n\n"
+            "📝 ملاحظة: هذه نسخة تجريبية\n"
+            "🔧 التحديثات قريباً\n\n"
+            "شكراً لاستخدامك البوت! 🙏"
+        )
 
-    if data == "voice_mode":
-        await query.edit_message_text("🎙️ **أرسل الرسالة الصوتية الآن...**")
-
-async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global BOT_PAUSED
-    user_id = update.effective_user.id
-
-    if BOT_PAUSED and user_id != ADMIN_ID:
-        await update.message.reply_text("⏸️ البوت متوقف.")
-        return
-
-    if not await is_subscribed(context, user_id) and user_id != ADMIN_ID:
-        await start(update, context)
-        return
-
-    voice = update.message.voice or update.message.audio
-    if not voice:
-        return
-
-    msg = await update.message.reply_text("⏳ جاري تحويل الصوت...")
-
-    try:
-        file = await context.bot.get_file(voice.file_id)
-        ogg_path = f"voice_{user_id}.ogg"
-        await file.download_to_drive(ogg_path)
-
-        with sr.AudioFile(ogg_path) as source:
-            audio_data = recognizer.record(source)
-            text = None
-            
-            # Try Arabic first
-            try:
-                text = recognizer.recognize_google(audio_data, language="ar-SA")
-            except:
-                try:
-                    text = recognizer.recognize_google(audio_data, language="en-US")
-                except:
-                    pass
-
-            if not text:
-                await msg.edit_text("❌ ما قدرت أحول الصوت.\nجرب صوت أوضح.")
-                return
-
-            await msg.edit_text(f"**✅ النص:**\n\n{text}")
-
-    except Exception as e:
-        await msg.edit_text(f"❌ خطأ: {str(e)[:100]}")
-    finally:
-        if os.path.exists(ogg_path):
-            os.remove(ogg_path)
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """معالج الأخطاء"""
+    logging.error(f"Update {update} caused error {context.error}")
 
 def main():
+    """الدالة الرئيسية"""
+    if not TOKEN:
+        print("⚠️ تحذير: لم يتم تعيين TOKEN")
+        print("البوت سيحاول الاتصال... إذا فشل، أضف TOKEN في Render")
+        return
+    
+    # إنشء التطبيق
     app = Application.builder().token(TOKEN).build()
+    
+    # إضافة معالجات الأوامر
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, voice_handler))
-    app.add_handler(CallbackQueryHandler(button_handler))
-    print("🚀 Bot is running...")
+    app.add_handler(CommandHandler("help", help_command))
+    
+    # معالج الرسائل الصوتية
+    from telegram.ext import MessageHandler, filters
+    app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, voice_message_handler))
+    
+    # معالج الأخطاء
+    app.add_error_handler(error_handler)
+    
+    print("🚀 البوت يعمل الآن...")
+    print("🎧 في انتظار الرسائل الصوتية...")
+    
+    # بدء البوت
     app.run_polling()
 
 if __name__ == "__main__":
