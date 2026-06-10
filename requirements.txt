@@ -1,7 +1,7 @@
 python-telegram-bot==20.7
 SpeechRecognition==3.10.0
 google-cloud-speech==2.21.0
-googletrans==4.0.0rc1
+google-cloud-translate==3.11.1
 pydub==0.25.1
 gunicorn==21.2.0
 python-dotenv==1.0.0
