@@ -8,6 +8,13 @@ logging.basicConfig(level=logging.INFO)
 
 # === إعداداتك ===
 TOKEN = os.environ.get("TOKEN")
+
+# تحقق من وجود التوكن
+if not TOKEN:
+    print("❌ خطأ: لم تعين متغير البيئة TOKEN في Render!")
+    print("اذهب إلى: Settings → Environment → أضف TOKEN")
+    exit(1)
+
 CHANNELS = ["@sodan249"]
 SUPPORT_LINK = "https://t.me/U_MP_7"
 ADMIN_ID = 8743242936
@@ -20,13 +27,6 @@ LANGUAGES = {
     "en": "🇬🇧 English",
     "fr": "🇫🇷 Français",
     "es": "🇪🇸 Español",
-}
-
-LANGUAGE_CODES = {
-    "ar": "ar",
-    "en": "en",
-    "fr": "fr",
-    "es": "es",
 }
 
 async def is_subscribed(context, user_id):
