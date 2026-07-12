@@ -1,0 +1,10 @@
+flask
+requests
+python-telegram-bot==21.10
+aiohttp
+socks
+cryptography
+gunicorn
+paramiko
+pycryptodome
+httpx[socks]
